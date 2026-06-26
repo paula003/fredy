@@ -88,9 +88,19 @@ export async function readFixture(url) {
 export function buildFetchMock() {
   let listData = null;
   let detailData = null;
+  let housingAnywhereData = null;
 
   return async (url) => {
     const urlStr = String(url);
+
+    // HousingAnywhere queries its public Algolia index directly (POST).
+    if (urlStr.includes('algolia.net') || urlStr.includes('algolianet.com')) {
+      if (!housingAnywhereData) {
+        const raw = await tryReadFile(path.join(FIXTURES_DIR, 'housingAnywhere_list.json'));
+        housingAnywhereData = raw ? JSON.parse(raw) : { hits: [] };
+      }
+      return { ok: true, status: 200, json: () => Promise.resolve(housingAnywhereData) };
+    }
 
     if (urlStr.includes('api.mobile.immobilienscout24.de/search/list')) {
       if (!listData) {
