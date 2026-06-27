@@ -90,6 +90,59 @@ async function downloadImmoscoutFixtures(mobileApiUrl) {
   console.log('  Saved immoscout_detail.json');
 }
 
+// Mirrors the Algolia query in lib/provider/housingAnywhere.js. Kept here (rather
+// than imported) to match the immoscout precedent of self-contained fixture
+// fetching; if the provider's credentials/index change, update both.
+async function downloadHousingAnywhereFixtures(searchUrl) {
+  console.log('\nDownloading housingAnywhere...');
+
+  const APP_ID = 'Y8L112MIBF';
+  const API_KEY = '170cf5d8f85035f219107d6fb900e3dd';
+  const INDEX = 'production_listings_most_recent';
+
+  let city = null;
+  let country = null;
+  try {
+    const parts = new URL(searchUrl).pathname.split('/').filter(Boolean);
+    const sIdx = parts.indexOf('s');
+    const [citySlug, countrySlug] = (parts[sIdx + 1] || '').split('--');
+    const deslug = (s) => decodeURIComponent(s || '').replace(/-/g, ' ').trim();
+    city = deslug(citySlug) || null;
+    country = deslug(countrySlug) || null;
+  } catch {
+    // handled below
+  }
+
+  if (!city || !country) {
+    console.warn(`  Could not parse city/country from ${searchUrl} – skipping`);
+    return;
+  }
+
+  const params = new URLSearchParams({
+    hitsPerPage: '8',
+    filters: `city:'${city}' AND country:'${country}' AND isSearchable:true AND propertyType:'APARTMENT'`,
+  }).toString();
+
+  const response = await fetch(`https://${APP_ID}-dsn.algolia.net/1/indexes/${INDEX}/query`, {
+    method: 'POST',
+    headers: {
+      'X-Algolia-Application-Id': APP_ID,
+      'X-Algolia-API-Key': API_KEY,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ params }),
+  });
+
+  if (!response.ok) {
+    console.warn(`  Failed to download housingAnywhere: ${response.statusText}`);
+    return;
+  }
+
+  const data = await response.json();
+  await writeFile(path.join(FIXTURES_DIR, 'housingAnywhere_list.json'), JSON.stringify(data, null, 2), 'utf-8');
+  console.log('  Saved housingAnywhere_list.json');
+}
+
 async function downloadHtmlProvider(name, providerConfig, launchBrowser, closeBrowser, puppeteerExtractor) {
   console.log(`\nDownloading ${name}...`);
 
@@ -148,6 +201,8 @@ async function main() {
 
     if (name === 'immoscout') {
       await downloadImmoscoutFixtures(provider.config.url);
+    } else if (name === 'housingAnywhere') {
+      await downloadHousingAnywhereFixtures(provider.config.url);
     } else {
       await downloadHtmlProvider(name, provider.config, launchBrowser, closeBrowser, puppeteerExtractor);
     }
