@@ -71,6 +71,15 @@ describe('#immowelt testsuite()', () => {
         expect(notify.link).toContain('https://www.immowelt.de');
         expect(notify.address).not.toBe('');
       });
+      // Availability date is parsed from the "frei ab <date>" entry in each
+      // card's key-facts block (best-effort). When present it must be ISO; the
+      // offline fixture carries concrete "frei ab" dates.
+      liveListings.forEach((l) => {
+        if (l.availableFrom != null) expect(l.availableFrom).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      });
+      if (process.env.TEST_MODE === 'offline') {
+        expect(liveListings.some((l) => l.availableFrom != null)).toBe(true);
+      }
     },
     TEST_TIMEOUT,
   );

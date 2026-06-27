@@ -14,7 +14,7 @@ import Headline from '../../../components/headline/Headline';
 import { useActions, useSelector } from '../../../services/state/store';
 import { xhrPost } from '../../../services/xhr';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { Divider, Input, Switch, Button, TagInput, Toast, Select } from '@douyinfe/semi-ui-19';
+import { Divider, Input, Switch, Button, TagInput, Toast, Select, DatePicker } from '@douyinfe/semi-ui-19';
 import './JobMutation.less';
 import { SegmentPart } from '../../../components/segment/SegmentPart';
 import {
@@ -33,9 +33,11 @@ export default function JobMutator() {
   const t = useTranslation();
 
   const SPEC_FILTERS = [
-    { key: 'maxPrice', translation: t('jobs.mutation.filterMaxPrice') },
-    { key: 'minSize', translation: t('jobs.mutation.filterMinSize') },
-    { key: 'minRooms', translation: t('jobs.mutation.filterMinRooms') },
+    { key: 'maxPrice', translation: t('jobs.mutation.filterMaxPrice'), type: 'number' },
+    { key: 'minSize', translation: t('jobs.mutation.filterMinSize'), type: 'number' },
+    { key: 'minRooms', translation: t('jobs.mutation.filterMinRooms'), type: 'number' },
+    { key: 'moveInEarliest', translation: t('jobs.mutation.filterMoveInEarliest'), type: 'date' },
+    { key: 'moveInLatest', translation: t('jobs.mutation.filterMoveInLatest'), type: 'date' },
   ];
 
   const jobs = useSelector((state) => state.jobsData.jobs);
@@ -79,9 +81,15 @@ export default function JobMutator() {
   }, []);
 
   const handleSpecFilterChange = (key, value) => {
-    if (!SPEC_FILTERS.map(({ key }) => key).includes(key)) return;
+    const meta = SPEC_FILTERS.find((filter) => filter.key === key);
+    if (!meta) return;
 
-    setSpecFilter({ ...specFilter, [key]: value ? parseFloat(value) : null });
+    if (meta.type === 'date') {
+      // Date filters are stored as ISO 'YYYY-MM-DD' strings (matching the DB and pipeline).
+      setSpecFilter({ ...specFilter, [key]: value || null });
+    } else {
+      setSpecFilter({ ...specFilter, [key]: value ? parseFloat(value) : null });
+    }
   };
 
   const isSavingEnabled = () => {
@@ -251,12 +259,22 @@ export default function JobMutator() {
             {SPEC_FILTERS.map((filter) => (
               <div key={filter.key} className="jobMutation__specFilterItem">
                 <div className="jobMutation__specFilterLabel">{filter.translation}</div>
-                <Input
-                  type="number"
-                  placeholder={t('jobs.mutation.criteriaNumberPlaceholder')}
-                  value={specFilter?.[filter.key]}
-                  onChange={(value) => handleSpecFilterChange(filter.key, value)}
-                />
+                {filter.type === 'date' ? (
+                  <DatePicker
+                    type="date"
+                    format="yyyy-MM-dd"
+                    placeholder={t('jobs.mutation.criteriaDatePlaceholder')}
+                    value={specFilter?.[filter.key] || null}
+                    onChange={(date, dateString) => handleSpecFilterChange(filter.key, dateString)}
+                  />
+                ) : (
+                  <Input
+                    type="number"
+                    placeholder={t('jobs.mutation.criteriaNumberPlaceholder')}
+                    value={specFilter?.[filter.key]}
+                    onChange={(value) => handleSpecFilterChange(filter.key, value)}
+                  />
+                )}
               </div>
             ))}
           </div>

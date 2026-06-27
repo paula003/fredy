@@ -115,6 +115,75 @@ describe('Issue reproduction: listings filtered by similarity or area should be 
   });
 });
 
+describe('Move-in date range spec filter', () => {
+  const baseListing = (id, availableFrom) => ({
+    id,
+    title: 'test',
+    address: 'addr',
+    price: '100',
+    link: `http://example.com/${id}`,
+    availableFrom,
+  });
+
+  const runWithRange = async (moveInEarliest, moveInLatest, listings) => {
+    const Fredy = await mockFredy();
+    const mockSimilarityCache = { checkAndAddEntry: () => false }; // never similar
+
+    const providerConfig = {
+      url: 'http://example.com',
+      getListings: () => Promise.resolve(listings),
+      normalize: (l) => l, // pass availableFrom through unchanged
+      filter: () => true,
+      crawlFields: { id: 'id', title: 'title', address: 'address', price: 'price' },
+      requiredFieldNames: ['id', 'title', 'address', 'price'],
+    };
+
+    const mockedJob = {
+      id: 'date-filter-job',
+      notificationAdapter: null,
+      specFilter: { moveInEarliest, moveInLatest },
+      spatialFilter: null,
+    };
+
+    const fredy = new Fredy(providerConfig, mockedJob, 'test-provider', mockSimilarityCache, undefined);
+    mockStore.deletedIds.length = 0;
+    const result = (await fredy.execute()) ?? [];
+    return { result, deletedIds: mockStore.deletedIds };
+  };
+
+  it('deletes a listing whose date is before the earliest bound', async () => {
+    const { result, deletedIds } = await runWithRange('2026-05-01', '2026-08-31', [
+      baseListing('before', '2026-04-01'),
+      baseListing('within', '2026-06-01'),
+    ]);
+    expect(deletedIds).toContain('before');
+    expect(result.map((l) => l.id)).not.toContain('before');
+  });
+
+  it('deletes a listing whose date is after the latest bound', async () => {
+    const { result, deletedIds } = await runWithRange('2026-05-01', '2026-08-31', [
+      baseListing('after', '2026-09-15'),
+      baseListing('within', '2026-06-01'),
+    ]);
+    expect(deletedIds).toContain('after');
+    expect(result.map((l) => l.id)).not.toContain('after');
+  });
+
+  it('keeps a listing whose date is within the range', async () => {
+    const { result, deletedIds } = await runWithRange('2026-05-01', '2026-08-31', [
+      baseListing('within', '2026-06-01'),
+    ]);
+    expect(deletedIds).not.toContain('within');
+    expect(result.map((l) => l.id)).toContain('within');
+  });
+
+  it('keeps a listing without a date even when a range is active (inclusive)', async () => {
+    const { result, deletedIds } = await runWithRange('2026-05-01', '2026-08-31', [baseListing('nodate', null)]);
+    expect(deletedIds).not.toContain('nodate');
+    expect(result.map((l) => l.id)).toContain('nodate');
+  });
+});
+
 describe('Blacklist is re-applied after detail enrichment', () => {
   afterEach(() => {
     mockStore.setUserSettings(null);

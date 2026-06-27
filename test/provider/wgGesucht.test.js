@@ -62,6 +62,15 @@ describe('#wgGesucht testsuite()', () => {
             expect(notify.price).toContain('€');
             expect(notify.link).toBeTypeOf('string');
           });
+          // Availability date is parsed from each card's "Verfügbar: <date>"
+          // block (best-effort). When present it must be ISO; the offline
+          // fixture carries concrete dates on its cards.
+          listing.forEach((l) => {
+            if (l.availableFrom != null) expect(l.availableFrom).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+          });
+          if (process.env.TEST_MODE === 'offline') {
+            expect(listing.some((l) => l.availableFrom != null)).toBe(true);
+          }
           resolve();
         });
       });
