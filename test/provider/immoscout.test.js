@@ -80,6 +80,15 @@ describe('#immoscout provider testsuite()', () => {
         expect(enriched).toBeTruthy();
         expect(enriched.description).toBeTypeOf('string');
         expect(enriched.description).not.toBe('');
+        // Availability date is best-effort (only present when the seller filled
+        // it). When present it must be a valid ISO date; the offline fixture
+        // carries a concrete "Bezugsfrei ab: 01.05.2026".
+        if (enriched.availableFrom != null) {
+          expect(enriched.availableFrom).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        }
+        if (process.env.TEST_MODE === 'offline') {
+          expect(enriched.availableFrom).toBe('2026-05-01');
+        }
       },
       TEST_TIMEOUT,
     );

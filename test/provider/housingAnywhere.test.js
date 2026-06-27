@@ -59,6 +59,12 @@ describe('#housingAnywhere provider testsuite()', () => {
           });
 
           expect(hasValidNotification).toBe(true);
+
+          // HousingAnywhere reliably exposes an availability date at list level;
+          // at least one listing should carry a parsed ISO 'YYYY-MM-DD' value.
+          const withDate = listings.filter((l) => l.availableFrom != null);
+          expect(withDate.length).toBeGreaterThan(0);
+          withDate.forEach((l) => expect(l.availableFrom).toMatch(/^\d{4}-\d{2}-\d{2}$/));
           resolve();
         }, reject);
       });

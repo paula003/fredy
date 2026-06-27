@@ -87,6 +87,14 @@ describe('#wunderflats testsuite()', () => {
         if (enriched.description != null) {
           expect(enriched.description).toBeTypeOf('string');
         }
+        // Availability date comes from the detail hydrant (best-effort). When
+        // present it must be ISO; the offline fixture exposes 2025-01-27.
+        if (enriched.availableFrom != null) {
+          expect(enriched.availableFrom).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        }
+        if (process.env.TEST_MODE === 'offline') {
+          expect(enriched.availableFrom).toBe('2025-01-27');
+        }
       },
       TEST_TIMEOUT,
     );
